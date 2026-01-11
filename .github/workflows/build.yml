@@ -1,0 +1,38 @@
+name: Build DLL
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - '*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+        
+    - name: Compile local.dll (MSVC 32-bit)
+      shell: cmd
+      run: |
+        for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath`) do set VSINSTALLPATH=%%i
+        call "%VSINSTALLPATH%\VC\Auxiliary\Build\vcvars32.bat"
+        cl /LD /Fe:local.dll main.c /link /DYNAMICBASE:NO
+        
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: local-dll
+        path: local.dll
+    
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: local.dll
+        tag_name: ${{ github.ref_name }}
